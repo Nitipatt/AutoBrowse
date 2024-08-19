@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Page Assist",
+  "version": "1.0",
+  "description": "A helpful assistant for web pages",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "static/js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["static/js/content.js"]
+    }
+  ]
+}
