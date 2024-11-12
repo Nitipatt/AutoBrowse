@@ -9,9 +9,6 @@ export const sendMessage = async (
   model,
   signal
 ) => {
-  console.log('chatHistory', chatHistory);
-  console.log('message', message);
-
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -25,10 +22,9 @@ export const sendMessage = async (
           role: 'system',
           content: `${systemPrompt}\n\nPage content: ${pageContent}`,
         },
-        {
-          role: 'user',
-          content: message,
-        },
+        ...(chatHistory[chatHistory.length - 1]?.role === 'assistant'
+          ? chatHistory.slice(0, -1)
+          : chatHistory),
       ],
       max_tokens: 4096,
       stream: true,
@@ -43,10 +39,13 @@ export const sendMessage = async (
   return response;
 };
 
-const summarizeChatHistory = async (apiKey, messages) => {
-  if (messages.length <= 10) {
-    return messages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
-  }
+export const summarizeChatHistory = async (apiKey, messages, model) => {
+  console.log('Hello summarizeChatHistory');
+  console.log('messages', messages);
+  const messagesLog = messages.slice(0, -1);
+  const lastMessage = messagesLog[messagesLog.length - 1];
+  console.log('messagesLog', messagesLog);
+  console.log('lastMessage', lastMessage);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -55,7 +54,7 @@ const summarizeChatHistory = async (apiKey, messages) => {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: CHEAP_MODEL,
+      model: model,
       messages: [
         {
           role: 'system',
@@ -64,7 +63,7 @@ const summarizeChatHistory = async (apiKey, messages) => {
         },
         {
           role: 'user',
-          content: messages
+          content: messagesLog
             .map((msg) => `${msg.role}: ${msg.content}`)
             .join('\n'),
         },
@@ -78,5 +77,10 @@ const summarizeChatHistory = async (apiKey, messages) => {
   }
 
   const result = await response.json();
-  return `Previous conversation summary:\n${result.choices[0].message.content}\n\nPlease consider this context for your response.`;
+  const summary = result.choices[0].message.content;
+
+  return [
+    { role: 'system', content: `Previous conversation summary:\n${summary}` },
+    lastMessage,
+  ];
 };

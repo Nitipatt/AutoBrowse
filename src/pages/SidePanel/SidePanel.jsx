@@ -7,6 +7,7 @@ import { storage } from '../../utils/storage';
 import { isExtensionEnvironment } from '../../utils/environment';
 import BrowseHistory from '../../components/BrowseHistory';
 import SkeletonChatMode from '../../components/SkeletonChatMode';
+import { summarizeChatHistory } from '../../utils/api';
 
 const SidePanel = () => {
   const [showSettings, setShowSettings] = useState(false);
@@ -32,6 +33,7 @@ const SidePanel = () => {
   const [browseHistory, setBrowseHistory] = useState([]);
   const [showBrowseHistory, setShowBrowseHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState({});
+  const [summarizedChatHistory, setSummarizedChatHistory] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -121,10 +123,13 @@ const SidePanel = () => {
       if (result.browseHistory) setBrowseHistory(result.browseHistory);
     });
 
-    // Load chat history from storage when component mounts
-    storage.get(['chatHistory'], (result) => {
+    // Load chat history and summarized chat history from storage
+    storage.get(['chatHistory', 'summarizedChatHistory'], (result) => {
       if (result.chatHistory) {
         setChatHistory(result.chatHistory);
+      }
+      if (result.summarizedChatHistory) {
+        setSummarizedChatHistory(result.summarizedChatHistory);
       }
     });
 
@@ -274,6 +279,32 @@ const SidePanel = () => {
         setIsLoading(false);
       }
     }
+
+    // Load or create summarized history for the selected URL
+    if (
+      !summarizedChatHistory[url] &&
+      chatHistory[url] &&
+      chatHistory[url].length > 10
+    ) {
+      const apiKey = model.startsWith('claude-')
+        ? anthropicApiKey
+        : openaiApiKey;
+      const summarized = await summarizeChatHistory(
+        apiKey,
+        chatHistory[url],
+        model
+      );
+      setSummarizedChatHistory((prev) => ({
+        ...prev,
+        [url]: summarized,
+      }));
+      storage.set({
+        summarizedChatHistory: {
+          ...summarizedChatHistory,
+          [url]: summarized,
+        },
+      });
+    }
   };
 
   const handleExitBrowseHistory = () => {
@@ -324,6 +355,8 @@ const SidePanel = () => {
           currentUrl={currentUrl}
           chatHistory={chatHistory}
           setChatHistory={setChatHistory}
+          summarizedChatHistory={summarizedChatHistory}
+          setSummarizedChatHistory={setSummarizedChatHistory}
         />
       )}
       {showSettings && (

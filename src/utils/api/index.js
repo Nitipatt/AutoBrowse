@@ -94,3 +94,8 @@ export const handleStreamingResponse = async (
     reader.releaseLock();
   }
 };
+
+export const summarizeChatHistory = async (apiKey, messages, model) => {
+  const provider = model.startsWith('claude-') ? anthropic : openai;
+  return provider.summarizeChatHistory(apiKey, messages, model);
+};

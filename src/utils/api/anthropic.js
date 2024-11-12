@@ -38,10 +38,13 @@ export const sendMessage = async (
   return response;
 };
 
-const summarizeChatHistory = async (apiKey, messages, model) => {
+export const summarizeChatHistory = async (apiKey, messages, model) => {
   if (messages.length <= 10) {
-    return messages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
+    return messages;
   }
+
+  const messagesLog = messages.slice(0, -1);
+  const lastMessage = messages[messages.length - 1];
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -57,7 +60,7 @@ const summarizeChatHistory = async (apiKey, messages, model) => {
       messages: [
         {
           role: 'user',
-          content: messages
+          content: messagesLog
             .map((msg) => `${msg.role}: ${msg.content}`)
             .join('\n'),
         },
@@ -71,5 +74,10 @@ const summarizeChatHistory = async (apiKey, messages, model) => {
   }
 
   const result = await response.json();
-  return `Previous conversation summary:\n${result.content[0].text}\n\nPlease consider this context for your response.`;
+  const summary = result.content[0].text;
+
+  return [
+    { role: 'user', content: `Previous conversation summary:\n${summary}` },
+    lastMessage,
+  ];
 };

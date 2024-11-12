@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ChatContainer from './ChatContainer';
 import ChatForm from '../ChatForm';
-import { sendMessage, handleStreamingResponse } from '../../utils/api';
+import {
+  sendMessage,
+  handleStreamingResponse,
+  summarizeChatHistory,
+} from '../../utils/api';
+import { storage } from '../../utils/storage';
 
 const ChatMode = ({
   pageContent,
@@ -13,6 +18,8 @@ const ChatMode = ({
   currentUrl,
   chatHistory,
   setChatHistory,
+  summarizedChatHistory,
+  setSummarizedChatHistory,
 }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -90,11 +97,30 @@ const ChatMode = ({
       const controller = new AbortController();
       setAbortController(controller);
 
+      let summarizedHistory = summarizedChatHistory[currentUrl] || [];
+      if (newMessages.length > 4 && !summarizedHistory.length) {
+        summarizedHistory = await summarizeChatHistory(
+          apiKey,
+          newMessages,
+          model
+        );
+        setSummarizedChatHistory((prev) => ({
+          ...prev,
+          [currentUrl]: summarizedHistory,
+        }));
+        storage.set({
+          summarizedChatHistory: {
+            ...summarizedChatHistory,
+            [currentUrl]: summarizedHistory,
+          },
+        });
+      }
+
       const response = await sendMessage(
         apiKey,
         systemPrompt,
         pageContent,
-        newMessages,
+        summarizedHistory.length ? summarizedHistory : newMessages,
         message,
         model,
         controller.signal
